@@ -26,7 +26,6 @@
   .row input[type="checkbox"]{transform:translateY(1px)}
   button{ border:0; border-radius:8px; padding:10px 14px; cursor:pointer; font-weight:600; background:var(--accent); color:#fff; }
   button.secondary{background:#e6e6ef;color:#222}
-  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .hint{color:var(--muted);font-size:.9rem}
   .wordlist{ margin:8px 0 0; padding-left:16px; max-height:280px; overflow:auto; border-top:1px dashed #ddd; }
   .wordlist li{margin:6px 0}
@@ -334,6 +333,26 @@ function buildSheets(){
   });
 }
 
+/* —— 印刷実行（Safari対策：レイアウト反映を待つ） —— */
+function doPrint(mode){ // mode: "problem" | "answer"
+  if(!last.grid){
+    alert("先に「パズルを生成」を押してください。");
+    return;
+  }
+  buildSheets();
+  document.body.setAttribute("data-print", mode);
+
+  // レイアウト反映を2フレーム待ってから印刷（Safari/iPad対策）
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    window.print();
+  }));
+}
+
+// 印刷後に状態を戻す
+window.addEventListener("afterprint", ()=>{
+  document.body.removeAttribute("data-print");
+});
+
 /* —— イベント —— */
 btnGen.addEventListener("click", ()=>{
   const entries = parseLines(wordsTA.value);
@@ -358,18 +377,8 @@ btnAns.addEventListener("click", ()=>{
   drawBoard(boardDiv, last.grid, last.show ? last.mask : null);
 });
 
-btnPrintProblem.addEventListener("click", ()=>{
-  buildSheets();
-  document.body.setAttribute("data-print","problem");
-  window.print();
-  document.body.removeAttribute("data-print");
-});
-btnPrintAnswer.addEventListener("click", ()=>{
-  buildSheets();
-  document.body.setAttribute("data-print","answer");
-  window.print();
-  document.body.removeAttribute("data-print");
-});
+btnPrintProblem.addEventListener("click", ()=>doPrint("problem"));
+btnPrintAnswer .addEventListener("click", ()=>doPrint("answer"));
 
 printPlacedOnlyChk.addEventListener("change", buildSheets);
 
