@@ -1,3 +1,4 @@
+<!doctype html>
 <html lang="ja">
 <head>
 <meta charset="utf-8">
@@ -5,67 +6,221 @@
 <title>Word Search Generator | EN-JA Word List</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --accent:#0066cc;
-    --grid:#333;
-    --muted:#777;
-    --bg:#f7f7fa;
-  }
+  :root { --accent:#0066cc; --grid:#333; --muted:#777; --bg:#f7f7fa; }
   html,body{height:100%}
-  body{
-    margin:0;
-    font-family: "Poppins","Noto Sans JP",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
-    background:var(--bg);
-    color:#111;
-    line-height:1.6;
-  }
-  .wrap{
-    max-width:1100px;
-    margin:24px auto;
-    padding:0 16px 48px;
-  }
+  body{ margin:0; font-family:"Poppins","Noto Sans JP",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:var(--bg); color:#111; line-height:1.6; }
+  .wrap{ max-width:1100px; margin:24px auto; padding:0 16px 48px; }
   h1{font-size:1.4rem;margin:0 0 12px}
-  .grid{
-    display:grid;
-    grid-template-columns: 360px 1fr;
-    gap:16px;
-  }
-  .panel{
-    background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px 16px;
-    box-shadow:0 2px 6px rgba(0,0,0,.04);
-  }
+  .grid{ display:grid; grid-template-columns:360px 1fr; gap:16px; }
+  .panel{ background:#fff; border:1px solid #ddd; border-radius:10px; padding:14px 16px; box-shadow:0 2px 6px rgba(0,0,0,.04); }
   .panel h2{font-size:1.05rem;margin:0 0 8px}
   label{font-weight:600;font-size:.95rem}
-  textarea,input,select,button{
-    font-family:inherit;font-size:1rem;
-  }
-  textarea{
-    width:100%;min-height:180px;resize:vertical;
-    padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;
-  }
+  textarea,input,select,button{ font-family:inherit; font-size:1rem; }
+  textarea{ width:100%; min-height:180px; resize:vertical; padding:10px; border:1px solid #ccc; border-radius:8px; background:#fff; }
   .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
   .row input[type="number"]{width:100px}
   .row input[type="checkbox"]{transform: translateY(1px);}
-  button{
-    border:0;border-radius:8px;padding:10px 14px;cursor:pointer;font-weight:600;
-    background:var(--accent);color:#fff;
-  }
+  button{ border:0; border-radius:8px; padding:10px 14px; cursor:pointer; font-weight:600; background:var(--accent); color:#fff; }
   button.secondary{background:#e6e6ef;color:#222}
   .hint{color:var(--muted);font-size:.9rem}
-  .wordlist{
-    margin:8px 0 0;padding-left:16px;max-height:280px;overflow:auto;border-top:1px dashed #ddd;
-  }
+  .wordlist{ margin:8px 0 0; padding-left:16px; max-height:280px; overflow:auto; border-top:1px dashed #ddd; }
   .wordlist li{margin:6px 0}
-  .board{
-    display:inline-grid;gap:2px;user-select:none;
-    background:#ddd;border:1px solid #bbb;padding:6px;border-radius:8px;
-  }
-  .cell{
-    width:32px;height:32px;display:flex;align-items:center;justify-content:center;
-    background:#fff;border:1px solid #ccc;border-radius:4px;font-weight:600;
-  }
+  .board{ display:inline-grid; gap:2px; user-select:none; background:#ddd; border:1px solid #bbb; padding:6px; border-radius:8px; }
+  .cell{ width:32px; height:32px; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #ccc; border-radius:4px; font-weight:600; }
   .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .legend{margin-top:8px;color:var(--muted);font-size:.9rem}
   .footer{margin-top:16px;color:var(--muted)}
   .error{color:#b00020;font-weight:600}
   .ok{color:#0a7a20;font-weight:600}
+  @media print{
+    body{background:#fff}
+    .wrap{max-width:none;margin:0;padding:0}
+    .panel{box-shadow:none;border:0}
+    .no-print{display:none !important}
+    .grid{grid-template-columns:300px 1fr;gap:12px}
+    .cell{width:28px;height:28px}
+    .wordlist{max-height:none;border:0}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Word Search Generator（英語＋日本語の意味表示／盤面は英字のみ）</h1>
+  <div class="grid">
+    <div class="panel">
+      <h2>Word List（1行に1語。日本語は任意）</h2>
+      <div class="hint">
+        区切りは「タブ」「カンマ」「=」、または「英語（日本語）」でもOK。例：<br>
+        apple	りんご / study abroad, 留学する / community=共同体 / participate（参加する）
+      </div>
+      <textarea id="words" placeholder="apple	りんご
+study abroad	留学する
+community	共同体
+participate	参加する"></textarea>
+      <div class="row">
+        <label for="size">グリッドサイズ</label>
+        <input id="size" type="number" min="8" max="30" value="14">
+        <label><input id="diagonal" type="checkbox" checked> 斜め配置を許可</label>
+        <label><input id="fillLower" type="checkbox" checked> 空マスを小文字で埋める</label>
+      </div>
+      <div class="controls">
+        <button id="generate">パズルを生成</button>
+        <button id="showAnswers" class="secondary">答えを表示/非表示</button>
+        <button id="print" class="secondary no-print">印刷</button>
+      </div>
+      <div id="status" class="legend" aria-live="polite"></div>
+      <h2 style="margin-top:12px">掲載語リスト</h2>
+      <ul id="list" class="wordlist"></ul>
+    </div>
+    <div class="panel">
+      <h2>パズル（盤面は英字のみ）</h2>
+      <div id="board"></div>
+      <div class="legend">左リストには日本語の意味を表示しますが、盤面には入りません。</div>
+    </div>
+  </div>
+  <div class="footer no-print">
+    ヒント: 長い語が多い場合はグリッドを少し大きくしてください。
+  </div>
+</div>
+
+<script>
+function sanitizeForGrid(enRaw){
+  const s = enRaw.normalize('NFKC');
+  return s.replace(/[^A-Za-z]/g, "");
+}
+function splitEnJa(line){
+  const byDelim = line.split(/\t|,|=/);
+  if(byDelim.length >= 2){
+    return { en: (byDelim[0]||"").trim(), ja: byDelim.slice(1).join(" ").trim() };
+  }
+  const m = line.match(/^(.*?)[（(]([^()（）]+)[）)]\s*$/);
+  if(m){ return { en: m[1].trim(), ja: m[2].trim() }; }
+  return { en: line.trim(), ja: "" };
+}
+function parseLines(text){
+  return text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length>0).map(splitEnJa).filter(x => x.en.length>0);
+}
+function randInt(n){ return Math.floor(Math.random()*n); }
+const DIRS_ORTHO = [{r:0,c:1},{r:0,c:-1},{r:1,c:0},{r:-1,c:0}];
+const DIRS_DIAG = [{r:1,c:1},{r:1,c:-1},{r:-1,c:1},{r:-1,c:-1}];
+function emptyGrid(n){ return Array.from({length:n}, () => Array.from({length:n}, () => "")); }
+function canPlace(grid, word, r, c, dr, dc){
+  const n = grid.length;
+  for(let i=0;i<word.length;i++){
+    const rr = r + dr*i, cc = c + dc*i;
+    if(rr<0||rr>=n||cc<0||cc>=n) return false;
+    const cell = grid[rr][cc];
+    if(cell!=="" && cell !== word[i]) return false;
+  }
+  return true;
+}
+function placeWord(grid, word, r, c, dr, dc, mark){
+  for(let i=0;i<word.length;i++){
+    const rr = r + dr*i, cc = c + dc*i;
+    grid[rr][cc] = word[i];
+    if(mark) mark[rr][cc] = true;
+  }
+}
+function fillRandom(grid, lower=true){
+  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  for(let r=0;r<grid.length;r++){
+    for(let c=0;c<grid.length;c++){
+      if(grid[r][c]===""){
+        const src = lower ? letters.toLowerCase() : letters;
+        grid[r][c] = src[randInt(26)];
+      }
+    }
+  }
+}
+function drawBoard(container, grid, solutionMask=null){
+  const n = grid.length;
+  container.innerHTML = "";
+  const board = document.createElement("div");
+  board.className = "board";
+  board.style.gridTemplateColumns = `repeat(${n}, 32px)`;
+  for(let r=0;r<n;r++){
+    for(let c=0;c<n;c++){
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.textContent = grid[r][c] || "";
+      if(solutionMask && solutionMask[r][c]){
+        cell.style.background = "#ffeaa7";
+        cell.style.borderColor = "#f2c94c";
+      }
+      board.appendChild(cell);
+    }
+  }
+  container.appendChild(board);
+}
+function generatePuzzle(entries, size, allowDiag){
+  const wordsForGrid = entries.map(x => sanitizeForGrid(x.en)).filter(w => w.length>0);
+  const grid = emptyGrid(size);
+  const mask = Array.from({length:size},()=>Array(size).fill(false));
+  const dirs = allowDiag ? [...DIRS_ORTHO, ...DIRS_DIAG] : [...DIRS_ORTHO];
+  const order = wordsForGrid.map((w,i)=>({w,i})).sort((a,b)=>b.w.length - a.w.length);
+  const placed = [];
+  for(const {w,i} of order){
+    const attempts = size*size*8;
+    for(let t=0;t<attempts;t++){
+      const dir = dirs[randInt(dirs.length)];
+      const r0 = randInt(size), c0 = randInt(size);
+      if(canPlace(grid, w, r0, c0, dir.r, dir.c)){
+        placeWord(grid, w, r0, c0, dir.r, dir.c, mask);
+        placed.push(i);
+        break;
+      }
+    }
+  }
+  return { grid, mask, placedIndices: placed };
+}
+const $ = (sel)=>document.querySelector(sel);
+const wordsTA = $("#words"), listUL = $("#list"), boardDiv = $("#board"), statusDiv = $("#status"), sizeInput = $("#size"), diagChk = $("#diagonal"), fillLowerChk = $("#fillLower"), btnGen = $("#generate"), btnAns = $("#showAnswers"), btnPrint = $("#print");
+let last = { grid:null, mask:null, entries:[], show:false, placedIndices:[] };
+function refreshList(entries, placedIndices){
+  listUL.innerHTML = "";
+  entries.forEach((it, idx)=>{
+    const li = document.createElement("li");
+    const inBoard = placedIndices.includes(idx);
+    li.innerHTML = `<strong>${it.en}</strong>${it.ja ? `（${it.ja}）` : ""}` + (inBoard? "" : ` <span style="color:#b00020">※未配置</span>`);
+    listUL.appendChild(li);
+  });
+}
+function updateStatus(total, placed){
+  if(placed===total){
+    statusDiv.innerHTML = `<span class="ok">全ての語を配置しました。</span>`;
+  }else{
+    const miss = total-placed;
+    statusDiv.innerHTML = `<span class="error">${miss} 個の語は配置できませんでした。グリッドを大きくするか、長い語を減らしてください。</span>`;
+  }
+}
+btnGen.addEventListener("click", ()=>{
+  const entries = parseLines(wordsTA.value);
+  if(entries.length===0){
+    statusDiv.textContent = "語がありません。Word List に入力してください。";
+    return;
+  }
+  const n = Math.max(8, Math.min(30, parseInt(sizeInput.value||"14",10)));
+  const { grid, mask, placedIndices } = generatePuzzle(entries, n, diagChk.checked);
+  fillRandom(grid, fillLowerChk.checked);
+  last = { grid, mask, entries, show:false, placedIndices };
+  drawBoard(boardDiv, grid, null);
+  refreshList(entries, placedIndices);
+  updateStatus(entries.length, placedIndices.length);
+});
+btnAns.addEventListener("click", ()=>{
+  if(!last.grid){ return; }
+  last.show = !last.show;
+  drawBoard(boardDiv, last.grid, last.show ? last.mask : null);
+});
+btnPrint.addEventListener("click", ()=>window.print());
+document.addEventListener("DOMContentLoaded", ()=>{
+  wordsTA.value = `apple\tりんご
+study abroad\t留学する
+community\t共同体
+participate\t参加する
+represent（表す）
+estimate=見積もる`;
+});
+</script>
+</body>
+</html>
