@@ -1,327 +1,71 @@
-<!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Word Search Generator (Web + Printable)</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Word Search Generator | EN-JA Word List</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --cell: 36px;
-    --gap: 2px;
-    --font: 18px;
+  :root {
+    --accent:#0066cc;
+    --grid:#333;
+    --muted:#777;
+    --bg:#f7f7fa;
   }
-  *{box-sizing:border-box}
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;line-height:1.5;margin:16px;color:#111}
-  h1{font-size:1.3rem;margin:0 0 8px}
-  .toolbar{display:grid;grid-template-columns:1fr;gap:12px;margin:12px 0 16px}
-  .row{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
-  label{font-size:.9rem}
-  textarea{width:100%;min-height:120px;font-family:ui-monospace,Menlo,Consolas,monospace}
-  input[type="number"], input[type="text"]{padding:6px 8px}
-  .chip{display:inline-flex;align-items:center;gap:6px;border:1px solid #ccc;border-radius:8px;padding:6px 10px;font-size:.9rem}
-  button{padding:8px 12px;border:1px solid #222;background:#111;color:#fff;border-radius:8px;cursor:pointer}
-  button.secondary{background:#fff;color:#111}
-  button:disabled{opacity:.5;cursor:not-allowed}
-  .grid{display:grid;gap:var(--gap);justify-content:start;align-items:start}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: "Poppins","Noto Sans JP",system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";
+    background:var(--bg);
+    color:#111;
+    line-height:1.6;
+  }
+  .wrap{
+    max-width:1100px;
+    margin:24px auto;
+    padding:0 16px 48px;
+  }
+  h1{font-size:1.4rem;margin:0 0 12px}
+  .grid{
+    display:grid;
+    grid-template-columns: 360px 1fr;
+    gap:16px;
+  }
+  .panel{
+    background:#fff;border:1px solid #ddd;border-radius:10px;padding:14px 16px;
+    box-shadow:0 2px 6px rgba(0,0,0,.04);
+  }
+  .panel h2{font-size:1.05rem;margin:0 0 8px}
+  label{font-weight:600;font-size:.95rem}
+  textarea,input,select,button{
+    font-family:inherit;font-size:1rem;
+  }
+  textarea{
+    width:100%;min-height:180px;resize:vertical;
+    padding:10px;border:1px solid #ccc;border-radius:8px;background:#fff;
+  }
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+  .row input[type="number"]{width:100px}
+  .row input[type="checkbox"]{transform: translateY(1px);}
+  button{
+    border:0;border-radius:8px;padding:10px 14px;cursor:pointer;font-weight:600;
+    background:var(--accent);color:#fff;
+  }
+  button.secondary{background:#e6e6ef;color:#222}
+  .hint{color:var(--muted);font-size:.9rem}
+  .wordlist{
+    margin:8px 0 0;padding-left:16px;max-height:280px;overflow:auto;border-top:1px dashed #ddd;
+  }
+  .wordlist li{margin:6px 0}
+  .board{
+    display:inline-grid;gap:2px;user-select:none;
+    background:#ddd;border:1px solid #bbb;padding:6px;border-radius:8px;
+  }
   .cell{
-    width:var(--cell); height:var(--cell);
-    display:grid; place-items:center;
-    border:1px solid #bbb; font-weight:600; font-size:var(--font);
-    user-select:none;
+    width:32px;height:32px;display:flex;align-items:center;justify-content:center;
+    background:#fff;border:1px solid #ccc;border-radius:4px;font-weight:600;
   }
-  .meta{display:flex;flex-wrap:wrap;gap:16px;margin-top:12px}
-  .meta .words{max-width:700px}
-  .word-list{columns:2}
-  .word-list li{break-inside:avoid;padding:0 6px}
-  .solution .cell.solution{background:#ffd9a8}
-  .muted{color:#666}
-  .footer{margin-top:10px;font-size:.85rem;color:#666}
-  .hidden{display:none !important}
-
-  /* Print styles */
-  @media print{
-    body{margin:0.5cm}
-    .toolbar{display:none !important}
-    .footer{display:none !important}
-    .container{page-break-inside:avoid}
-    .grid{gap:1px}
-    .cell{border:1px solid #888}
-    .word-list{columns:3}
-  }
-</style>
-</head>
-<body>
-  <h1>Word Search Generator (Web + Printable)</h1>
-  <p class="muted">Type your word list (one per line), customize options, then Generate → Print. Toggle “Show solution” to print an answer key.</p>
-
-  <section class="toolbar">
-    <div>
-      <label for="words"><strong>Words (one per line)</strong></label>
-      <textarea id="words" spellcheck="false">planet
-gravity
-atmosphere
-orbit
-telescope
-galaxy
-asteroid
-comet
-meteor
-satellite
-eclipse
-crater</textarea>
-    </div>
-
-    <div class="row">
-      <label class="chip">Grid size
-        <input id="size" type="number" min="6" max="30" value="14" style="width:80px">
-      </label>
-
-      <label class="chip">Seed
-        <input id="seed" type="text" placeholder="optional" style="width:140px">
-      </label>
-
-      <label class="chip"><input id="allowBack" type="checkbox" checked> Allow backwards</label>
-      <label class="chip"><input id="diag" type="checkbox" checked> Allow diagonals</label>
-      <label class="chip"><input id="hideList" type="checkbox"> Hide word list (for test print)</label>
-    </div>
-
-    <div class="row">
-      <button id="generate">Generate</button>
-      <button id="toggleSolution" class="secondary" disabled>Show solution</button>
-      <button id="printBtn" class="secondary" disabled>Print</button>
-      <button id="copyKey" class="secondary" disabled>Copy answer key</button>
-    </div>
-  </section>
-
-  <section class="container">
-    <div id="titleLine" class="meta">
-      <div><strong>Theme:</strong> <span id="themeName">Space & Astronomy</span></div>
-      <div><strong>Date:</strong> <span id="today"></span></div>
-      <div><strong>Seed:</strong> <span id="seedShow">—</span></div>
-    </div>
-
-    <div id="grid" class="grid"></div>
-
-    <div class="meta words">
-      <h3>Word List</h3>
-      <ul id="wordList" class="word-list"></ul>
-    </div>
-    <div class="footer">Tip: Use your browser’s Print to save as PDF. Toggle “Show solution” before printing to include the answer key.</div>
-  </section>
-
-<script>
-// ---------- Utilities: seeded PRNG ----------
-function mulberry32(a){
-  return function(){
-    var t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ t >>> 15, t | 1);
-    t ^= t + Math.imul(t ^ t >>> 7, t | 61);
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  }
-}
-function strToSeed(s){
-  if(!s) return Math.floor(Math.random()*2**31);
-  let h=2166136261>>>0;
-  for(let i=0;i<s.length;i++){
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h,16777619);
-  }
-  return h>>>0;
-}
-// ---------- Directions ----------
-const DIRS = [
-  {dx:1, dy:0, name:'E'},
-  {dx:-1, dy:0, name:'W'},
-  {dx:0, dy:1, name:'S'},
-  {dx:0, dy:-1, name:'N'},
-  {dx:1, dy:1, name:'SE'},
-  {dx:-1, dy:-1, name:'NW'},
-  {dx:1, dy:-1, name:'NE'},
-  {dx:-1, dy:1, name:'SW'}
-];
-
-// ---------- Core generator ----------
-function generatePuzzle(words, size, options, seedStr){
-  const seed = strToSeed(seedStr);
-  const rand = mulberry32(seed);
-  const grid = Array.from({length:size}, _=>Array(size).fill(''));
-  const placements = []; // {word, cells:[{r,c}], dir}
-
-  // Prepare candidate directions
-  let dirs = DIRS.slice(0,4); // E,W,S,N
-  if(options.diag) dirs = DIRS.slice();
-  // Try place words (sorted long->short helps)
-  words = words.map(w=>w.trim().toUpperCase()).filter(Boolean);
-  words.sort((a,b)=>b.length-a.length);
-
-  for(const originalWord of words){
-    const variants = [originalWord];
-    if(options.allowBack && originalWord.length>1){
-      variants.push(originalWord.split('').reverse().join(''));
-    }
-
-    let placed=false;
-    // Shuffle directions for each word
-    const dirOrder = dirs.map((d,i)=>i).sort(()=>rand()-0.5);
-    // Try many attempts
-    for(let attempt=0; attempt<400 && !placed; attempt++){
-      const dir = DIRS[dirOrder[(attempt % dirOrder.length)]];
-      const word = variants[(attempt % variants.length)];
-      const len = word.length;
-
-      // random start
-      const r0 = Math.floor(rand()*size);
-      const c0 = Math.floor(rand()*size);
-
-      // compute end to check bounds
-      const rEnd = r0 + dir.dy*(len-1);
-      const cEnd = c0 + dir.dx*(len-1);
-      if(rEnd<0 || rEnd>=size || cEnd<0 || cEnd>=size) continue;
-
-      // check fit (allow overlap with same letter)
-      let ok=true;
-      let path=[];
-      for(let k=0;k<len;k++){
-        const r=r0+dir.dy*k, c=c0+dir.dx*k;
-        const cell=grid[r][c];
-        if(cell!=='' && cell!==word[k]){ ok=false; break; }
-        path.push({r,c});
-      }
-      if(!ok) continue;
-
-      // place
-      for(let k=0;k<len;k++){
-        const r=path[k].r, c=path[k].c;
-        grid[r][c]=word[k];
-      }
-      placements.push({word:originalWord, cells:path, dir:dir.name, reversed:(word!==originalWord)});
-      placed=true;
-    }
-  }
-
-  // Fill remaining with random letters
-  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  for(let r=0;r<size;r++){
-    for(let c=0;c<size;c++){
-      if(grid[r][c]===''){
-        grid[r][c] = alphabet[Math.floor(rand()*alphabet.length)];
-      }
-    }
-  }
-  return {grid, placements, seed};
-}
-
-// ---------- DOM helpers ----------
-function $(id){return document.getElementById(id);}
-
-function render({grid, placements, seed}, hideList){
-  const g = $('grid');
-  g.innerHTML='';
-  g.classList.remove('solution');
-
-  const n = grid.length;
-  // Adjust CSS grid
-  g.style.gridTemplateColumns = `repeat(${n}, var(--cell))`;
-
-  // Create cells
-  for(let r=0;r<n;r++){
-    for(let c=0;c<n;c++){
-      const div = document.createElement('div');
-      div.className='cell';
-      div.textContent = grid[r][c];
-      div.dataset.r=r; div.dataset.c=c;
-      g.appendChild(div);
-    }
-  }
-
-  // word list
-  const ul = $('wordList');
-  ul.innerHTML='';
-  if(hideList){ ul.parentElement.classList.add('hidden'); }
-  else{ ul.parentElement.classList.remove('hidden'); }
-
-  const used = new Set(placements.map(p=>p.word.toUpperCase()));
-  used.forEach(w=>{
-    const li=document.createElement('li'); li.textContent=w; ul.appendChild(li);
-  });
-
-  $('seedShow').textContent = $('seed').value || 'random';
-  $('toggleSolution').disabled = placements.length===0;
-  $('printBtn').disabled = placements.length===0;
-  $('copyKey').disabled = placements.length===0;
-
-  // store placements for solution
-  g.dataset.placements = JSON.stringify(placements);
-}
-
-function toggleSolution(){
-  const g=$('grid');
-  const on = !g.classList.contains('solution');
-  g.classList.toggle('solution', on);
-
-  // apply highlight classes
-  const placements = JSON.parse(g.dataset.placements||'[]');
-  // clear previous
-  g.querySelectorAll('.cell').forEach(cell=>cell.classList.remove('solution'));
-  if(on){
-    placements.forEach(p=>{
-      p.cells.forEach(pos=>{
-        const idx = pos.r*gridSize + pos.c;
-      });
-    });
-    // Faster: mark by coordinates
-    placements.forEach(p=>{
-      p.cells.forEach(({r,c})=>{
-        const i = r*gridSize + c;
-        const cell = g.children[i];
-        if(cell) cell.classList.add('solution');
-      });
-    });
-  }
-
-  $('toggleSolution').textContent = on ? 'Hide solution' : 'Show solution';
-}
-
-function copyAnswerKey(){
-  const g=$('grid');
-  const placements=JSON.parse(g.dataset.placements||'[]');
-  const lines = placements.map(p=>{
-    const coords = p.cells.map(({r,c})=>`(${r+1},${c+1})`).join(' ');
-    const rev = p.reversed ? ' [reversed]' : '';
-    return `${p.word.toUpperCase()}\t${p.dir}${rev}\t${coords}`;
-  });
-  const text = 'WORD\tDIR\tCELLS\n' + lines.join('\n');
-  navigator.clipboard.writeText(text).then(()=>{
-    alert('Answer key copied to clipboard.');
-  });
-}
-
-let current;
-let gridSize=14;
-
-function doGenerate(){
-  const words = $('words').value.split(/\r?\n/);
-  gridSize = Math.max(6, Math.min(30, parseInt($('size').value||14)));
-  const opt = {
-    allowBack: $('allowBack').checked,
-    diag: $('diag').checked
-  };
-  const seedStr = $('seed').value.trim();
-  current = generatePuzzle(words, gridSize, opt, seedStr);
-  render(current, $('hideList').checked);
-  $('toggleSolution').textContent = 'Show solution';
-}
-
-function init(){
-  $('today').textContent = new Date().toLocaleDateString(undefined, {year:'numeric', month:'short', day:'numeric'});
-  $('generate').addEventListener('click', doGenerate);
-  $('toggleSolution').addEventListener('click', toggleSolution);
-  $('printBtn').addEventListener('click', ()=>window.print());
-  $('copyKey').addEventListener('click', copyAnswerKey);
-  // First render
-  doGenerate();
-}
-document.addEventListener('DOMContentLoaded', init);
-</script>
-</body>
-</html>
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+  .legend{margin-top:8px;color:var(--muted);font-size:.9rem}
+  .footer{margin-top:16px;color:var(--muted)}
+  .error{color:#b00020;font-weight:600}
+  .ok{color:#0a7a20;font-weight:600}
