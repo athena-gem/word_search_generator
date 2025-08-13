@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Word Search Generator | 印刷用レイアウト（英語＋日本語）</title>
+<title>Word Search Generator | 問題・解答の印刷対応</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
-  :root { --accent:#0066cc; --muted:#777; --bg:#f7f7fa; }
+  :root { --accent:#0066cc; --muted:#777; --bg:#f7f7fa; --hi:#b3e5fc; --hiBorder:#4fc3f7; }
   html,body{height:100%}
   body{
     margin:0;
@@ -26,55 +26,53 @@
   .row input[type="checkbox"]{transform:translateY(1px)}
   button{ border:0; border-radius:8px; padding:10px 14px; cursor:pointer; font-weight:600; background:var(--accent); color:#fff; }
   button.secondary{background:#e6e6ef;color:#222}
+  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .hint{color:var(--muted);font-size:.9rem}
   .wordlist{ margin:8px 0 0; padding-left:16px; max-height:280px; overflow:auto; border-top:1px dashed #ddd; }
   .wordlist li{margin:6px 0}
   .board{ display:inline-grid; gap:2px; user-select:none; background:#ddd; border:1px solid #bbb; padding:6px; border-radius:8px; }
   .cell{ width:32px; height:32px; display:flex; align-items:center; justify-content:center; background:#fff; border:1px solid #ccc; border-radius:4px; font-weight:600; }
-  .controls{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
   .legend{margin-top:8px;color:var(--muted);font-size:.9rem}
-  .footer{margin-top:16px;color:var(--muted)}
   .error{color:#b00020;font-weight:600}
   .ok{color:#0a7a20;font-weight:600}
 
-  /* 印刷用シート（普段は非表示） */
-  #printSheet{ display:none; }
-  #printSheet .sheet{
+  /* 印刷シート（ふだん非表示） */
+  #printSheet, #answerSheet { display:none; }
+  .sheet{
     display:grid;
     grid-template-rows:auto 1fr auto;
     gap:10px;
   }
-  #printTop{
-    display:flex; justify-content:center; align-items:center; padding-top:4px;
-  }
-  #printBoard .board .cell{ width:28px; height:28px; }
-  #printBottom{ padding:8px 0 0; }
-  #printWords{
+  .sheetTop{ display:flex; justify-content:center; align-items:center; padding-top:4px; }
+  .sheetBoard .board .cell{ width:28px; height:28px; }
+  .sheetBottom{ padding:8px 0 0; }
+  .sheetWords{
     display:grid;
     grid-template-columns:repeat(2, 1fr);
     gap:4px 16px;
     font-size:1rem;
     list-style:none; padding:0; margin:0;
   }
-  #printWords li{border-bottom:1px dotted #ddd; padding:2px 0}
+  .sheetWords li{border-bottom:1px dotted #ddd; padding:2px 0}
 
-  /* 印刷時の最適化 */
+  /* 印刷時の切替 */
   @media print{
     @page{ size:A4; margin:14mm; }
     body{ background:#fff }
-    .no-print, .wrap{ display:none !important; }
-    #printSheet{ display:block !important; }
-    #printTitle{ font-size:14pt; font-weight:700; text-align:center; margin-bottom:6mm; }
-    #printBoard .board .cell{
-      width:22pt; height:22pt; border-radius:2pt;
-    }
-    #printBoard .cell[data-solution="1"]{ background:#fff !important; border-color:#ccc !important; }
+    .wrap{ display:none !important; }
+    #printSheet, #answerSheet { display:none !important; }
+    /* data-print 属性で表示するシートを切替 */
+    body[data-print="problem"] #printSheet{ display:block !important; }
+    body[data-print="answer"]  #answerSheet{ display:block !important; }
+
+    #printTitle, #answerTitle{ font-size:14pt; font-weight:700; text-align:center; margin-bottom:6mm; }
+    .sheetBoard .board .cell{ width:22pt; height:22pt; border-radius:2pt; }
   }
 </style>
 </head>
 <body>
-<div class="wrap no-print">
-  <h1>Word Search Generator（印刷用レイアウト対応・語リストに日本語表示）</h1>
+<div class="wrap">
+  <h1>Word Search Generator（問題・解答の印刷対応）</h1>
   <div class="grid">
     <div class="panel">
       <h2>Word List（1行に1語。日本語は任意）</h2>
@@ -86,6 +84,7 @@
 study abroad	留学する
 community	共同体
 participate	参加する"></textarea>
+
       <div class="row">
         <label for="size">グリッドサイズ</label>
         <input id="size" type="number" min="8" max="30" value="14">
@@ -94,40 +93,59 @@ participate	参加する"></textarea>
       </div>
       <div class="row">
         <label><input id="printPlacedOnly" type="checkbox" checked> 印刷は配置済みの語のみ</label>
-        <span class="hint">オフにすると未配置語も含めます</span>
+        <span class="hint">オフで未配置語も含める</span>
       </div>
+
       <div class="controls">
         <button id="generate">パズルを生成</button>
         <button id="showAnswers" class="secondary">答えを表示/非表示</button>
-        <button id="print" class="secondary">印刷</button>
+        <button id="printProblem" class="secondary">問題を印刷</button>
+        <button id="printAnswer" class="secondary">解答を印刷</button>
       </div>
-      <div id="status" class="legend" aria-live="polite"></div>
+
+      <div id="status" class="hint" aria-live="polite"></div>
       <h2 style="margin-top:12px">掲載語リスト（画面表示：英語＋日本語）</h2>
       <ul id="list" class="wordlist"></ul>
     </div>
+
     <div class="panel">
       <h2>パズル（盤面は英字のみ）</h2>
       <div id="board"></div>
-      <div class="legend">左リスト・印刷リストには日本語の意味を表示しますが、盤面には入りません。</div>
+      <div class="legend">左・印刷の語リストには日本語も表示、盤面には入りません。</div>
     </div>
   </div>
 </div>
 
-<!-- 印刷専用のシート -->
+<!-- 問題用（ハイライト無し） -->
 <div id="printSheet">
   <div id="printTitle">Word Search</div>
   <div class="sheet">
-    <div id="printTop">
-      <div id="printBoard"></div>
+    <div class="sheetTop">
+      <div id="printBoard" class="sheetBoard"></div>
     </div>
-    <div id="printBottom">
+    <div class="sheetBottom">
       <h3 style="margin:8px 0 6px; font-size:1.05rem;">Words</h3>
-      <ul id="printWords"></ul>
+      <ul id="printWords" class="sheetWords"></ul>
+    </div>
+  </div>
+</div>
+
+<!-- 解答用（ハイライト有り） -->
+<div id="answerSheet">
+  <div id="answerTitle">Word Search – Answer Key</div>
+  <div class="sheet">
+    <div class="sheetTop">
+      <div id="answerBoard" class="sheetBoard"></div>
+    </div>
+    <div class="sheetBottom">
+      <h3 style="margin:8px 0 6px; font-size:1.05rem;">Words</h3>
+      <ul id="answerWords" class="sheetWords"></ul>
     </div>
   </div>
 </div>
 
 <script>
+/* —— 文字列処理 —— */
 function sanitizeForGrid(enRaw){
   return enRaw.normalize('NFKC').replace(/[^A-Za-z]/g, "");
 }
@@ -143,6 +161,8 @@ function splitEnJa(line){
 function parseLines(text){
   return text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length>0).map(splitEnJa).filter(x => x.en.length>0);
 }
+
+/* —— 盤面ユーティリティ —— */
 function randInt(n){ return Math.floor(Math.random()*n); }
 const DIRS_ORTHO = [{r:0,c:1},{r:0,c:-1},{r:1,c:0},{r:-1,c:0}];
 const DIRS_DIAG = [{r:1,c:1},{r:1,c:-1},{r:-1,c:1},{r:-1,c:-1}];
@@ -164,7 +184,6 @@ function placeWord(grid, word, r, c, dr, dc, mark){
     if(mark) mark[rr][cc] = true;
   }
 }
-/* 修正ポイント：n を定義してから使用 */
 function fillRandom(grid, lower=true){
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const n = grid.length;
@@ -177,6 +196,8 @@ function fillRandom(grid, lower=true){
     }
   }
 }
+
+/* —— 盤面描画（画面用） —— */
 function drawBoard(container, grid, solutionMask=null){
   const n = grid.length;
   container.innerHTML = "";
@@ -189,8 +210,8 @@ function drawBoard(container, grid, solutionMask=null){
       cell.className = "cell";
       cell.textContent = grid[r][c] || "";
       if(solutionMask && solutionMask[r][c]){
-        cell.style.background = "#ffeaa7";
-        cell.style.borderColor = "#f2c94c";
+        cell.style.background = "var(--hi)";
+        cell.style.borderColor = "var(--hiBorder)";
         cell.setAttribute("data-solution","1");
       }
       board.appendChild(cell);
@@ -198,7 +219,9 @@ function drawBoard(container, grid, solutionMask=null){
   }
   container.appendChild(board);
 }
-function drawBoardForPrint(container, grid){
+
+/* —— 盤面描画（印刷用：ハイライト有無を切替） —— */
+function drawBoardForPrint(container, grid, mask=null){
   const n = grid.length;
   container.innerHTML = "";
   const board = document.createElement("div");
@@ -209,18 +232,26 @@ function drawBoardForPrint(container, grid){
       const cell = document.createElement("div");
       cell.className = "cell";
       cell.textContent = grid[r][c] || "";
+      if(mask && mask[r][c]){
+        cell.style.background = "var(--hi)";
+        cell.style.borderColor  = "var(--hiBorder)";
+      }
       board.appendChild(cell);
     }
   }
   container.appendChild(board);
 }
+
+/* —— 生成ロジック —— */
 function generatePuzzle(entries, size, allowDiag){
   const wordsForGrid = entries.map(x => sanitizeForGrid(x.en)).filter(w => w.length>0);
   const grid = emptyGrid(size);
   const mask = Array.from({length:size},()=>Array(size).fill(false));
   const dirs = allowDiag ? [...DIRS_ORTHO, ...DIRS_DIAG] : [...DIRS_ORTHO];
+
   const order = wordsForGrid.map((w,i)=>({w,i})).sort((a,b)=>b.w.length - a.w.length);
   const placed = [];
+
   for(const {w,i} of order){
     const attempts = size*size*8;
     let ok = false;
@@ -236,6 +267,8 @@ function generatePuzzle(entries, size, allowDiag){
   }
   return { grid, mask, placedIndices: placed };
 }
+
+/* —— DOM —— */
 const $ = (sel)=>document.querySelector(sel);
 const wordsTA = $("#words");
 const listUL = $("#list");
@@ -247,38 +280,61 @@ const fillLowerChk = $("#fillLower");
 const printPlacedOnlyChk = $("#printPlacedOnly");
 const btnGen = $("#generate");
 const btnAns = $("#showAnswers");
-const btnPrint = $("#print");
-const printBoardDiv = $("#printBoard");
-const printWordsUL = $("#printWords");
+const btnPrintProblem = $("#printProblem");
+const btnPrintAnswer  = $("#printAnswer");
+
+const printBoardDiv  = $("#printBoard");
+const printWordsUL   = $("#printWords");
+const answerBoardDiv = $("#answerBoard");
+const answerWordsUL  = $("#answerWords");
+
 let last = { grid:null, mask:null, entries:[], show:false, placedIndices:[] };
+
 function refreshList(entries, placedIndices){
   listUL.innerHTML = "";
   entries.forEach((it, idx)=>{
     const inBoard = placedIndices.includes(idx);
-    listUL.innerHTML += `<li><strong>${it.en}</strong>${it.ja ? `（${it.ja}）` : ""}${inBoard? "" : ` <span style="color:#b00020">※未配置</span>`}</li>`;
+    const li = document.createElement("li");
+    li.innerHTML = `<strong>${it.en}</strong>${it.ja ? `（${it.ja}）` : ""}` + (inBoard? "" : ` <span style="color:#b00020">※未配置</span>`);
+    listUL.appendChild(li);
   });
 }
 function updateStatus(total, placed){
   if(placed===total){
     statusDiv.innerHTML = `<span class="ok">全ての語を配置しました。</span>`;
   }else{
-    statusDiv.innerHTML = `<span class="error">${total-placed} 個の語は配置できませんでした。</span>`;
+    const miss = total-placed;
+    statusDiv.innerHTML = `<span class="error">${miss} 個の語は配置できませんでした。グリッドを大きくするか、長い語を減らしてください。</span>`;
   }
 }
-function buildPrintSheet(){
+
+/* —— 印刷用の構築 —— */
+function buildSheets(){
   if(!last.grid) return;
-  drawBoardForPrint(printBoardDiv, last.grid);
   const onlyPlaced = printPlacedOnlyChk.checked;
-  const source = onlyPlaced
-    ? last.entries.filter((_,idx)=>last.placedIndices.includes(idx))
-    : last.entries;
+  const items = last.entries.map((x,idx)=>({en:x.en, ja:x.ja, idx}));
+  const source = onlyPlaced ? items.filter(it=>last.placedIndices.includes(it.idx)) : items;
+
+  // 問題用（ハイライトなし）
+  drawBoardForPrint(printBoardDiv, last.grid, null);
   printWordsUL.innerHTML = "";
   source.forEach(it=>{
     const li = document.createElement("li");
     li.textContent = it.ja ? `${it.en}（${it.ja}）` : it.en;
     printWordsUL.appendChild(li);
   });
+
+  // 解答用（ハイライトあり）
+  drawBoardForPrint(answerBoardDiv, last.grid, last.mask);
+  answerWordsUL.innerHTML = "";
+  source.forEach(it=>{
+    const li = document.createElement("li");
+    li.textContent = it.ja ? `${it.en}（${it.ja}）` : it.en;
+    answerWordsUL.appendChild(li);
+  });
 }
+
+/* —— イベント —— */
 btnGen.addEventListener("click", ()=>{
   const entries = parseLines(wordsTA.value);
   if(entries.length===0){
@@ -289,21 +345,35 @@ btnGen.addEventListener("click", ()=>{
   const { grid, mask, placedIndices } = generatePuzzle(entries, n, diagChk.checked);
   fillRandom(grid, fillLowerChk.checked);
   last = { grid, mask, entries, show:false, placedIndices };
+
   drawBoard(boardDiv, grid, null);
   refreshList(entries, placedIndices);
   updateStatus(entries.length, placedIndices.length);
-  buildPrintSheet();
+  buildSheets();
 });
+
 btnAns.addEventListener("click", ()=>{
   if(!last.grid) return;
   last.show = !last.show;
   drawBoard(boardDiv, last.grid, last.show ? last.mask : null);
 });
-btnPrint.addEventListener("click", ()=>{
-  buildPrintSheet();
+
+btnPrintProblem.addEventListener("click", ()=>{
+  buildSheets();
+  document.body.setAttribute("data-print","problem");
   window.print();
+  document.body.removeAttribute("data-print");
 });
-printPlacedOnlyChk.addEventListener("change", buildPrintSheet);
+btnPrintAnswer.addEventListener("click", ()=>{
+  buildSheets();
+  document.body.setAttribute("data-print","answer");
+  window.print();
+  document.body.removeAttribute("data-print");
+});
+
+printPlacedOnlyChk.addEventListener("change", buildSheets);
+
+/* —— 初期デモ —— */
 document.addEventListener("DOMContentLoaded", ()=>{
   wordsTA.value = `apple\tりんご
 study abroad\t留学する
