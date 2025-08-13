@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Word Search Generator | 問題・解答の印刷対応（逆向き禁止オプション）</title>
+<title>Word Search Generator | 印刷・解答対応／逆向き・斜め禁止オプション</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root { --accent:#0066cc; --muted:#777; --bg:#f7f7fa; --hi:#b3e5fc; --hiBorder:#4fc3f7; }
@@ -60,8 +60,10 @@
     body{ background:#fff }
     .wrap{ display:none !important; }
     #printSheet, #answerSheet { display:none !important; }
+    /* data-print 属性で表示するシートを切替 */
     body[data-print="problem"] #printSheet{ display:block !important; }
     body[data-print="answer"]  #answerSheet{ display:block !important; }
+
     #printTitle, #answerTitle{ font-size:14pt; font-weight:700; text-align:center; margin-bottom:6mm; }
     .sheetBoard .board .cell{ width:22pt; height:22pt; border-radius:2pt; }
   }
@@ -69,7 +71,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Word Search Generator（問題・解答の印刷対応／逆向き禁止オプション）</h1>
+  <h1>Word Search Generator（印刷・解答対応／逆向き・斜め禁止オプション）</h1>
   <div class="grid">
     <div class="panel">
       <h2>Word List（1行に1語。日本語は任意）</h2>
@@ -86,15 +88,13 @@ participate	参加する"></textarea>
         <label for="size">グリッドサイズ</label>
         <input id="size" type="number" min="8" max="30" value="14">
         <label><input id="diagonal" type="checkbox" checked> 斜め配置を許可</label>
-        <label><input id="fillLower" type="checkbox" checked> 空マスを小文字で埋める</label>
-      </div>
-      <div class="row">
+        <label><input id="noDiagonal" type="checkbox"> 斜めは禁止（横と縦のみ）</label>
         <label><input id="forwardOnly" type="checkbox" checked> 逆向きは禁止（右→左／下→上を使わない）</label>
-        <span class="hint">オンのとき：左→右、上→下、斜めは↘のみ</span>
       </div>
       <div class="row">
+        <label><input id="fillLower" type="checkbox" checked> 空マスを小文字で埋める</label>
         <label><input id="printPlacedOnly" type="checkbox" checked> 印刷は配置済みの語のみ</label>
-        <span class="hint">オフで未配置語も含める</span>
+        <span class="hint">未配置語も印刷したい場合はオフ</span>
       </div>
 
       <div class="controls">
@@ -243,18 +243,31 @@ function drawBoardForPrint(container, grid, mask=null){
   container.appendChild(board);
 }
 
+/* —— 方向セットを作る —— */
+function getDirs(allowDiag, noDiag, forwardOnly){
+  // ベースは水平・垂直
+  let dirs = [...DIRS_ORTHO];
+
+  // 斜め禁止がオフ かつ 斜め許可がオン のときだけ斜めを追加
+  if(!noDiag && allowDiag){
+    dirs = dirs.concat(DIRS_DIAG);
+  }
+
+  // 逆向き禁止なら、右・下（と↘のみ）に制限
+  if(forwardOnly){
+    dirs = dirs.filter(d => (d.r>=0 && d.c>=0) && !(d.r===0 && d.c===0));
+  }
+
+  return dirs;
+}
+
 /* —— 生成ロジック —— */
-function generatePuzzle(entries, size, allowDiag, forwardOnly){
+function generatePuzzle(entries, size, allowDiag, noDiag, forwardOnly){
   const wordsForGrid = entries.map(x => sanitizeForGrid(x.en)).filter(w => w.length>0);
   const grid = emptyGrid(size);
   const mask = Array.from({length:size},()=>Array(size).fill(false));
 
-  // 方向の準備
-  let dirs = allowDiag ? [...DIRS_ORTHO, ...DIRS_DIAG] : [...DIRS_ORTHO];
-  if(forwardOnly){
-    // 逆向きを除外：dc>=0 かつ dr>=0（0,0は除外）
-    dirs = dirs.filter(d => (d.r>=0 && d.c>=0) && !(d.r===0 && d.c===0));
-  }
+  const dirs = getDirs(allowDiag, noDiag, forwardOnly);
 
   const order = wordsForGrid.map((w,i)=>({w,i})).sort((a,b)=>b.w.length - a.w.length);
   const placed = [];
@@ -283,8 +296,9 @@ const boardDiv = $("#board");
 const statusDiv = $("#status");
 const sizeInput = $("#size");
 const diagChk = $("#diagonal");
-const fillLowerChk = $("#fillLower");
+const noDiagChk = $("#noDiagonal");
 const forwardChk = $("#forwardOnly");
+const fillLowerChk = $("#fillLower");
 const printPlacedOnlyChk = $("#printPlacedOnly");
 const btnGen = $("#generate");
 const btnAns = $("#showAnswers");
@@ -362,7 +376,12 @@ btnGen.addEventListener("click", ()=>{
     return;
   }
   const n = Math.max(8, Math.min(30, parseInt(sizeInput.value||"14",10)));
-  const { grid, mask, placedIndices } = generatePuzzle(entries, n, diagChk.checked, forwardChk.checked);
+  const { grid, mask, placedIndices } = generatePuzzle(
+    entries, n,
+    diagChk.checked,
+    noDiagChk.checked,
+    forwardChk.checked
+  );
   fillRandom(grid, fillLowerChk.checked);
   last = { grid, mask, entries, show:false, placedIndices };
 
