@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Word Search Generator | 印刷・解答対応／逆向き・斜め禁止オプション</title>
+<title>Word Search Generator | 印刷・解答・PDF対応／逆向き・斜め禁止オプション</title>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root { --accent:#0066cc; --muted:#777; --bg:#f7f7fa; --hi:#b3e5fc; --hiBorder:#4fc3f7; }
@@ -35,12 +35,14 @@
   .error{color:#b00020;font-weight:600}
   .ok{color:#0a7a20;font-weight:600}
 
-  /* 印刷シート（ふだん非表示） */
+  /* 印刷/キャプチャ用シート（ふだん非表示） */
   #printSheet, #answerSheet { display:none; }
   .sheet{
     display:grid;
     grid-template-rows:auto 1fr auto;
     gap:10px;
+    background:#fff;
+    color:#000;
   }
   .sheetTop{ display:flex; justify-content:center; align-items:center; padding-top:4px; }
   .sheetBoard .board .cell{ width:28px; height:28px; }
@@ -60,18 +62,28 @@
     body{ background:#fff }
     .wrap{ display:none !important; }
     #printSheet, #answerSheet { display:none !important; }
-    /* data-print 属性で表示するシートを切替 */
     body[data-print="problem"] #printSheet{ display:block !important; }
     body[data-print="answer"]  #answerSheet{ display:block !important; }
-
     #printTitle, #answerTitle{ font-size:14pt; font-weight:700; text-align:center; margin-bottom:6mm; }
     .sheetBoard .board .cell{ width:22pt; height:22pt; border-radius:2pt; }
   }
+
+  /* PDFキャプチャ用: 画面外に一時表示 */
+  .captureHost{
+    position: fixed;
+    left: -10000px; top: 0;
+    width: 794px;   /* A4幅 ≒ 8.27in * 96dpi */
+    background:#fff;
+    padding:0; margin:0;
+    z-index: -1;
+  }
+  .captureHost .sheetBoard .board .cell{ width:24px; height:24px; } /* PDF向けに少し詰める */
+  .title{ font-size:18px; font-weight:700; text-align:center; margin:10px 0 14px; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Word Search Generator（印刷・解答対応／逆向き・斜め禁止オプション）</h1>
+  <h1>Word Search Generator（印刷・解答・PDF対応／逆向き・斜め禁止オプション）</h1>
   <div class="grid">
     <div class="panel">
       <h2>Word List（1行に1語。日本語は任意）</h2>
@@ -93,8 +105,8 @@ participate	参加する"></textarea>
       </div>
       <div class="row">
         <label><input id="fillLower" type="checkbox" checked> 空マスを小文字で埋める</label>
-        <label><input id="printPlacedOnly" type="checkbox" checked> 印刷は配置済みの語のみ</label>
-        <span class="hint">未配置語も印刷したい場合はオフ</span>
+        <label><input id="printPlacedOnly" type="checkbox" checked> 印刷/PDFは配置済みの語のみ</label>
+        <span class="hint">未配置語も含めたい場合はオフ</span>
       </div>
 
       <div class="controls">
@@ -102,6 +114,12 @@ participate	参加する"></textarea>
         <button id="showAnswers" class="secondary">答えを表示/非表示</button>
         <button id="printProblem" class="secondary">問題を印刷</button>
         <button id="printAnswer" class="secondary">解答を印刷</button>
+      </div>
+
+      <div class="controls" style="margin-top:8px">
+        <button id="pdfProblem">問題PDFをダウンロード</button>
+        <button id="pdfAnswer"  class="secondary">解答PDFをダウンロード</button>
+        <button id="pdfBoth"    class="secondary">問題＋解答をPDFで一括</button>
       </div>
 
       <div id="status" class="hint" aria-live="polite"></div>
@@ -112,14 +130,14 @@ participate	参加する"></textarea>
     <div class="panel">
       <h2>パズル（盤面は英字のみ）</h2>
       <div id="board"></div>
-      <div class="legend">左・印刷の語リストには日本語も表示、盤面には入りません。</div>
+      <div class="legend">左・印刷/PDFの語リストには日本語も表示、盤面には入りません。</div>
     </div>
   </div>
 </div>
 
 <!-- 問題用（ハイライト無し） -->
 <div id="printSheet">
-  <div id="printTitle">Word Search</div>
+  <div id="printTitle" class="title">Word Search</div>
   <div class="sheet">
     <div class="sheetTop">
       <div id="printBoard" class="sheetBoard"></div>
@@ -133,7 +151,7 @@ participate	参加する"></textarea>
 
 <!-- 解答用（ハイライト有り） -->
 <div id="answerSheet">
-  <div id="answerTitle">Word Search – Answer Key</div>
+  <div id="answerTitle" class="title">Word Search – Answer Key</div>
   <div class="sheet">
     <div class="sheetTop">
       <div id="answerBoard" class="sheetBoard"></div>
@@ -144,6 +162,13 @@ participate	参加する"></textarea>
     </div>
   </div>
 </div>
+
+<!-- PDFキャプチャ専用ホスト（画面外に配置） -->
+<div id="pdfHost" class="captureHost"></div>
+
+<!-- 依存ライブラリ（CDN） -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNa5H6Vt6Qql0k3l0xC5G1D2dL5t7x8p7FzM8QYHZHqkQJ1xH4pB6B1l2yF5t5u8n2V3J2dJmE4Q9A4qf1Y8xg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="sha512-YkM9we4M/2+1sK3s+qvQ3m0r2Q+zGm2Jk0kqk6u3mM1lQwzVtN5o6m2j6mQG4w7b7r0N9vLwG0lRk3yqR0c4WQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 
 <script>
 /* —— 文字列処理 —— */
@@ -221,17 +246,19 @@ function drawBoard(container, grid, solutionMask=null){
   container.appendChild(board);
 }
 
-/* —— 盤面描画（印刷用：ハイライト有無を切替） —— */
-function drawBoardForPrint(container, grid, mask=null){
+/* —— 盤面描画（シート用：ハイライト有無を切替） —— */
+function drawBoardForSheet(container, grid, mask=null, cellPx=24){
   const n = grid.length;
   container.innerHTML = "";
   const board = document.createElement("div");
   board.className = "board";
-  board.style.gridTemplateColumns = `repeat(${n}, 28px)`;
+  board.style.gridTemplateColumns = `repeat(${n}, ${cellPx}px)`;
   for(let r=0;r<n;r++){
     for(let c=0;c<n;c++){
       const cell = document.createElement("div");
       cell.className = "cell";
+      cell.style.width = cellPx+"px";
+      cell.style.height = cellPx+"px";
       cell.textContent = grid[r][c] || "";
       if(mask && mask[r][c]){
         cell.style.background = "var(--hi)";
@@ -243,21 +270,11 @@ function drawBoardForPrint(container, grid, mask=null){
   container.appendChild(board);
 }
 
-/* —— 方向セットを作る —— */
+/* —— 方向セット —— */
 function getDirs(allowDiag, noDiag, forwardOnly){
-  // ベースは水平・垂直
   let dirs = [...DIRS_ORTHO];
-
-  // 斜め禁止がオフ かつ 斜め許可がオン のときだけ斜めを追加
-  if(!noDiag && allowDiag){
-    dirs = dirs.concat(DIRS_DIAG);
-  }
-
-  // 逆向き禁止なら、右・下（と↘のみ）に制限
-  if(forwardOnly){
-    dirs = dirs.filter(d => (d.r>=0 && d.c>=0) && !(d.r===0 && d.c===0));
-  }
-
+  if(!noDiag && allowDiag){ dirs = dirs.concat(DIRS_DIAG); }
+  if(forwardOnly){ dirs = dirs.filter(d => (d.r>=0 && d.c>=0) && !(d.r===0 && d.c===0)); }
   return dirs;
 }
 
@@ -266,7 +283,6 @@ function generatePuzzle(entries, size, allowDiag, noDiag, forwardOnly){
   const wordsForGrid = entries.map(x => sanitizeForGrid(x.en)).filter(w => w.length>0);
   const grid = emptyGrid(size);
   const mask = Array.from({length:size},()=>Array(size).fill(false));
-
   const dirs = getDirs(allowDiag, noDiag, forwardOnly);
 
   const order = wordsForGrid.map((w,i)=>({w,i})).sort((a,b)=>b.w.length - a.w.length);
@@ -304,11 +320,15 @@ const btnGen = $("#generate");
 const btnAns = $("#showAnswers");
 const btnPrintProblem = $("#printProblem");
 const btnPrintAnswer  = $("#printAnswer");
+const btnPdfProblem   = $("#pdfProblem");
+const btnPdfAnswer    = $("#pdfAnswer");
+const btnPdfBoth      = $("#pdfBoth");
 
 const printBoardDiv  = $("#printBoard");
 const printWordsUL   = $("#printWords");
 const answerBoardDiv = $("#answerBoard");
 const answerWordsUL  = $("#answerWords");
+const pdfHost        = $("#pdfHost");
 
 let last = { grid:null, mask:null, entries:[], show:false, placedIndices:[] };
 
@@ -330,7 +350,7 @@ function updateStatus(total, placed){
   }
 }
 
-/* —— 印刷用の構築 —— */
+/* —— シート構築（画面/印刷/PDF 共通） —— */
 function buildSheets(){
   if(!last.grid) return;
   const onlyPlaced = printPlacedOnlyChk.checked;
@@ -338,7 +358,7 @@ function buildSheets(){
   const source = onlyPlaced ? items.filter(it=>last.placedIndices.includes(it.idx)) : items;
 
   // 問題用（ハイライトなし）
-  drawBoardForPrint(printBoardDiv, last.grid, null);
+  drawBoardForSheet(printBoardDiv, last.grid, null, 28);
   printWordsUL.innerHTML = "";
   source.forEach(it=>{
     const li = document.createElement("li");
@@ -347,7 +367,7 @@ function buildSheets(){
   });
 
   // 解答用（ハイライトあり）
-  drawBoardForPrint(answerBoardDiv, last.grid, last.mask);
+  drawBoardForSheet(answerBoardDiv, last.grid, last.mask, 28);
   answerWordsUL.innerHTML = "";
   source.forEach(it=>{
     const li = document.createElement("li");
@@ -356,7 +376,7 @@ function buildSheets(){
   });
 }
 
-/* —— 印刷実行（Safari対策） —— */
+/* —— 印刷（Safari対策） —— */
 function doPrint(mode){
   if(!last.grid){
     alert("先に「パズルを生成」を押してください。");
@@ -367,6 +387,96 @@ function doPrint(mode){
   requestAnimationFrame(()=>requestAnimationFrame(()=>{ window.print(); }));
 }
 window.addEventListener("afterprint", ()=>{ document.body.removeAttribute("data-print"); });
+
+/* —— PDF作成ユーティリティ —— */
+async function captureSheetToCanvas(node){
+  // 一時的に pdfHost に複製して安定キャプチャ（A4幅 794px）
+  pdfHost.innerHTML = "";
+  const clone = node.cloneNode(true);
+  pdfHost.appendChild(clone);
+
+  // 盤面サイズをPDF向けに微調整
+  const boards = clone.querySelectorAll('.sheetBoard .board .cell');
+  boards.forEach(el=>{
+    // 24pxセルは css側で指定済み。ここでは確実に適用されるよう再セット
+    el.style.width  = '24px';
+    el.style.height = '24px';
+  });
+
+  await new Promise(r=>requestAnimationFrame(r));
+  const scale = Math.max(2, Math.ceil(window.devicePixelRatio || 1)); // 高解像度
+  return await html2canvas(clone, { scale, backgroundColor:'#fff' });
+}
+
+function canvasToPdf(canvas, fileName){
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const imgData = canvas.toDataURL('image/png');
+
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+
+  // 余白（mm）
+  const margin = 10;
+  const maxW = pageW - margin*2;
+  const maxH = pageH - margin*2;
+
+  // キャンバスの縦横比を保持して収める
+  const imgWmm = maxW;
+  const imgHmm = canvas.height * (imgWmm * (canvas.width ? 1/canvas.width : 1));
+  let w = imgWmm, h = imgHmm;
+  if(h > maxH){
+    h = maxH;
+    w = canvas.width * (h * (canvas.height ? 1/canvas.height : 1));
+  }
+  const x = (pageW - w)/2;
+  const y = (pageH - h)/2;
+
+  pdf.addImage(imgData, 'PNG', x, y, w, h);
+  pdf.save(fileName);
+}
+
+async function makePdfSingle(mode){ // 'problem' | 'answer'
+  if(!last.grid){ alert("先に「パズルを生成」を押してください。"); return; }
+  buildSheets();
+  const node = (mode==='problem') ? document.querySelector('#printSheet') : document.querySelector('#answerSheet');
+  const canvas = await captureSheetToCanvas(node);
+  const name = (mode==='problem') ? 'wordsearch_problem.pdf' : 'wordsearch_answer.pdf';
+  canvasToPdf(canvas, name);
+}
+
+async function makePdfBoth(){
+  if(!last.grid){ alert("先に「パズルを生成」を押してください。"); return; }
+  buildSheets();
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+
+  // 問題
+  let canvas = await captureSheetToCanvas(document.querySelector('#printSheet'));
+  addCanvasToPdf(pdf, canvas);
+
+  // 解答（2ページ目）
+  pdf.addPage();
+  canvas = await captureSheetToCanvas(document.querySelector('#answerSheet'));
+  addCanvasToPdf(pdf, canvas);
+
+  pdf.save('wordsearch_problem_and_answer.pdf');
+
+  function addCanvasToPdf(pdf, canvas){
+    const imgData = canvas.toDataURL('image/png');
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 10;
+    const maxW = pageW - margin*2;
+    const maxH = pageH - margin*2;
+    let w = maxW;
+    let h = canvas.height * (w / canvas.width);
+    if(h > maxH){ h = maxH; w = canvas.width * (h / canvas.height); }
+    const x = (pageW - w)/2;
+    const y = (pageH - h)/2;
+    pdf.addImage(imgData, 'PNG', x, y, w, h);
+  }
+}
 
 /* —— イベント —— */
 btnGen.addEventListener("click", ()=>{
@@ -390,13 +500,20 @@ btnGen.addEventListener("click", ()=>{
   updateStatus(entries.length, placedIndices.length);
   buildSheets();
 });
+
 btnAns.addEventListener("click", ()=>{
   if(!last.grid) return;
   last.show = !last.show;
   drawBoard(boardDiv, last.grid, last.show ? last.mask : null);
 });
+
 btnPrintProblem.addEventListener("click", ()=>doPrint("problem"));
 btnPrintAnswer .addEventListener("click", ()=>doPrint("answer"));
+
+btnPdfProblem.addEventListener("click", ()=>makePdfSingle('problem'));
+btnPdfAnswer .addEventListener("click", ()=>makePdfSingle('answer'));
+btnPdfBoth   .addEventListener("click", ()=>makePdfBoth());
+
 printPlacedOnlyChk.addEventListener("change", buildSheets);
 
 /* —— 初期デモ —— */
